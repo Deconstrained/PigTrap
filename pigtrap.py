@@ -4,13 +4,15 @@
 # Python script for system monitoring, which logs processes that run the biggest and longest
 # License: http://www.gnu.org/licenses/gpl.html
 
-import gzip,os,subprocess,sys,time
+import gzip,os,re,subprocess,sys,time
 from config import *
 
 now = time.time()
 today = time.time()
 logfile = None
 countPigs = 0
+processes = {}
+ignoreProc = re.compile(ignorePat)
 
 class process:
 	def __init__(self,user,pid,line):
@@ -112,13 +114,14 @@ while True:
 		for line in getPs():
 			llist = line.split()
 			if len(llist):
-				uid = llist[0]
-				pid = int(llist[1])
-				concurrent.append(pid)
-				if pid in processes:
-					processes[pid].add(llist)
-				else:
-					processes[pid] = process(uid,pid,llist)
+				if not ignoreProc.match(llist[10]):
+					uid = llist[0]
+					pid = int(llist[1])
+					concurrent.append(pid)
+					if pid in processes:
+						processes[pid].add(llist)
+					else:
+						processes[pid] = process(uid,pid,llist)
 		# Record which processes are being pigs:
 		openLog()
 		countPigs = 0
