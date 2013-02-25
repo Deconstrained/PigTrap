@@ -1,0 +1,11 @@
+maxDays = 5
+gzipDays = 2
+sleep = 2
+processes = {}
+now = time.time()
+today = time.time()
+logfile = None
+strikes = 3
+memThresh = 10
+cpuThresh = 50
+countPigs = 0
