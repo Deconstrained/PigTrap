@@ -1,9 +1,16 @@
 #!/usr/bin/env python
 
-## Python script for system monitoring, which logs processes that run the biggest and longest
+## pigtrap.py 
+# Python script for system monitoring, which logs processes that run the biggest and longest
+# License: http://www.gnu.org/licenses/gpl.html
 
 import gzip,os,subprocess,sys,time
 from config import *
+
+now = time.time()
+today = time.time()
+logfile = None
+countPigs = 0
 
 class process:
 	def __init__(self,user,pid,line):
@@ -51,29 +58,30 @@ def openLog():
 
 def writeLog(pid):
 	"""Record that a PID is being a resource hog"""
-	global processes,logfile,strikes
+	global processes,logfile,strikes,sleep
 	proc = processes[pid]
-	logfile.write('[%s] %d %s %f%%cpu %f%%mem (over %d s): %s\n'%(time.strftime('%b %d %H:%M:%S'),pid,proc.user,proc.cpu,proc.mem,proc.count*strikes,proc.command))
+	logfile.write('[%s] %d %s %f%%cpu %f%%mem (over %d s): %s\n'%(time.strftime('%b %d %H:%M:%S'),pid,proc.user,proc.cpu,proc.mem,proc.count*sleep,proc.command))
 
 def logFilename(ind=''):
 	global gzipDays
 	day = int(ind) if ind != '' else 0
-	return 'trap.log%s%s'%(str(ind),'.gz' if day>=gzipDays else '')
+	return 'trap.log%s%s'%('.%s'%ind if ind !='' else '','.gz' if day>=gzipDays else '')
 	
 def logRotate():
 	global processes,maxDays,gzipDays,logfile
-	os.remove(logFilename(maxDays))
+	if os.path.exists(logFilename(maxDays)):
+		os.remove(logFilename(maxDays))
 	for i in range(maxDays)[-2::-1]:
 		if os.path.exists(logFilename(i)):
-			if i != gzipDays: # Move old file to older file of same type
+			if i != gzipDays-1: # Move old file to older file of same type
 				os.rename(logFilename(i),logFilename(i+1))
 			else: # Create new zip file
-				f = open(logFileName(i),'rb')
-				zf = gzip.open(logFileName(i+1),'wb')
+				f = open(logFilename(i),'rb')
+				zf = gzip.open(logFilename(i+1),'wb')
 				zf.writelines(f)
 				f.close()
 				zf.close()
-				os.remove(logFileName(i))
+				os.remove(logFilename(i))
 	# New day, new logfile, new processes
 	logfile.close()
 	os.rename(logFilename(),logFilename(1))
@@ -97,13 +105,12 @@ def pigs():
 while True:
 	try:
 		now = time.time()
-		if now-today >= 86400:
+		if now-today >= logInterval:
 			today = now
 			logRotate()
 		concurrent = []
 		for line in getPs():
 			llist = line.split()
-			today = int(time.time())
 			if len(llist):
 				uid = llist[0]
 				pid = int(llist[1])
